@@ -1,9 +1,10 @@
 importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js');
+console.log("s");
 
 // Mobile-optimized configuration
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
-ort.env.backendHint = 'wasm'; // Force WASM for better mobile compatibility
-ort.env.wasm.simd = true;
+ort.env.backendHint = 'webgpu'; // Force WASM for better mobile compatibility
+ort.env.wasm.simd = false;
 //ort.env.wasm.numThreads = Math.min(navigator.hardwareConcurrency || 2, 4); // Limit threads for mobile
 ort.env.wasm.numThreads = 4;
 
@@ -20,7 +21,7 @@ self.onmessage = async (e) => {
 
             // Mobile-optimized session options
             const sessionOptions = {
-                executionProviders: ['wasm'],
+                executionProviders: ['webgpu', 'wasm'],
                 graphOptimizationLevel: 'all',
                 enableCpuMemArena: true,
                 enableMemPattern: true,

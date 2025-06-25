@@ -1,5 +1,5 @@
 importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js');
-
+console.log("p");
 // Mobile-optimized configuration
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
 ort.env.backendHint = 'wasm'; // Force WASM for better mobile compatibility
