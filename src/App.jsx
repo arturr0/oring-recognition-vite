@@ -97,7 +97,7 @@ const worker = new Worker(new URL('./onnxWorker.js', import.meta.url));
     };
 
     // Load model from public folder
-    worker.postMessage({ type: 'loadModel', modelUrl: '/best.onnx' });
+    worker.postMessage({ type: 'loadModel', modelUrl: '/best_simplified.onnx' });
 
     return () => {
       worker.terminate();
