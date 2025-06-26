@@ -1,13 +1,12 @@
 importScripts('https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js');
+console.log("s");
 
-console.log("[Worker] Starting...");
-
-const supportsWebGPU = !!navigator.gpu;
-
+// Mobile-optimized configuration
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
-ort.env.wasm.simd = true;
+ort.env.backendHint = 'webgpu'; // Force WASM for better mobile compatibility
+ort.env.wasm.simd = false;
+//ort.env.wasm.numThreads = Math.min(navigator.hardwareConcurrency || 2, 4); // Limit threads for mobile
 ort.env.wasm.numThreads = 4;
-// Optional: backendHint removed to avoid conflict
 
 let session = null;
 let processing = false;
@@ -20,49 +19,97 @@ self.onmessage = async (e) => {
             console.log('[Worker] Loading model...');
             const startLoad = performance.now();
 
+            // Mobile-optimized session options
             const sessionOptions = {
-                executionProviders: supportsWebGPU ? ['webgpu', 'wasm'] : ['wasm'],
+                executionProviders: ['webgpu', 'wasm'],
                 graphOptimizationLevel: 'all',
                 enableCpuMemArena: true,
                 enableMemPattern: true,
-                executionMode: 'sequential',
+                executionMode: 'sequential', // Better for mobile
                 enableProfiling: false
             };
 
+            // Try to load with and without external data for mobile compatibility
             try {
                 session = await ort.InferenceSession.create(modelUrl, sessionOptions);
             } catch (firstError) {
                 console.warn('[Worker] First load attempt failed, trying fallback...');
-                sessionOptions.externalData = false;
-                session = await ort.InferenceSession.create(modelUrl, sessionOptions);
+                try {
+                    sessionOptions.externalData = false;
+                    session = await ort.InferenceSession.create(modelUrl, sessionOptions);
+                } catch (secondError) {
+                    throw new Error(`Failed to load model: ${firstError.message} and ${secondError.message}`);
+                }
             }
 
-            console.log(`[Worker] Model loaded in ${(performance.now() - startLoad).toFixed(1)} ms`);
+            const endLoad = performance.now();
+            console.log(`[Worker] Model loaded in ${(endLoad - startLoad).toFixed(1)} ms`);
+            console.log('[Worker] Backend:', ort.env.backendHint);
+            console.log('[Worker] Input names:', session.inputNames);
+            console.log('[Worker] Output names:', session.outputNames);
+
             self.postMessage({ type: 'loaded' });
         } catch (err) {
-            self.postMessage({ type: 'error', message: `Model load failed: ${err.message}` });
+            console.error('[Worker] Load error:', err);
+            self.postMessage({ 
+                type: 'error', 
+                message: `Model load failed: ${err.message}` 
+            });
         }
     }
 
     if (type === 'infer') {
-        if (!session || processing) return;
+        if (!session) {
+            self.postMessage({ 
+                type: 'error', 
+                message: 'Model not loaded' 
+            });
+            return;
+        }
+
+        if (processing) {
+            return; // Skip if already processing
+        }
 
         processing = true;
+
         try {
             const startInfer = performance.now();
-            const tensor = new ort.Tensor('float32', new Float32Array(tensorData), dims);
-            const feeds = { [session.inputNames[0]]: tensor };
-            const results = await session.run(feeds);
 
-            const output = results[session.outputNames[0]];
-            self.postMessage({
-                type: 'inference',
-                data: output.data.buffer,
-                dims: output.dims,
-                inferTime: (performance.now() - startInfer).toFixed(1),
-            }, [output.data.buffer]);
+            // Create tensor with mobile-optimized approach
+            const tensor = new ort.Tensor('float32', new Float32Array(tensorData), dims);
+            
+            // Use dynamic input name from session
+            const inputName = session.inputNames[0];
+            const feeds = { [inputName]: tensor };
+
+            const results = await session.run(feeds);
+            const endInfer = performance.now();
+            const inferTime = (endInfer - startInfer).toFixed(1);
+
+            // Get first output
+            const outputKey = session.outputNames[0];
+            const outputTensor = results[outputKey];
+
+            if (!outputTensor || !outputTensor.data) {
+                throw new Error('Invalid output tensor received');
+            }
+
+            self.postMessage(
+                {
+                    type: 'inference',
+                    data: outputTensor.data.buffer,
+                    dims: outputTensor.dims,
+                    inferTime,
+                },
+                [outputTensor.data.buffer]
+            );
         } catch (err) {
-            self.postMessage({ type: 'error', message: `Inference failed: ${err.message}` });
+            console.error('[Worker] Inference error:', err);
+            self.postMessage({ 
+                type: 'error', 
+                message: `Inference failed: ${err.message}` 
+            });
         } finally {
             processing = false;
         }
