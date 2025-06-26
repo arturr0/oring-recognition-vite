@@ -343,34 +343,47 @@ function App() {
 
   // Extracted drawBoxes function
   const drawBoxes = (ctx, boxes, canvasWidth, canvasHeight) => {
+    // Calculate dynamic font size based on canvas width (adjust the divisor as needed)
+    const fontSize = Math.max(13, canvasWidth / 50); // Minimum 10px, scales with canvas
+    const fontFamily = 'Arial, sans-serif';
+    const font = `${fontSize}px ${fontFamily}`;
+    
+    // Calculate label box height based on font size
+    const labelBoxHeight = fontSize * 1.3; // 1.3 is a good ratio for text padding
+    
     boxes.forEach(box => {
-      const x = (box.x1 / MODEL_INPUT_SIZE) * canvasWidth;
-      const y = (box.y1 / MODEL_INPUT_SIZE) * canvasHeight;
-      const w = ((box.x2 - box.x1) / MODEL_INPUT_SIZE) * canvasWidth;
-      const h = ((box.y2 - box.y1) / MODEL_INPUT_SIZE) * canvasHeight;
+        const x = (box.x1 / MODEL_INPUT_SIZE) * canvasWidth;
+        const y = (box.y1 / MODEL_INPUT_SIZE) * canvasHeight;
+        const w = ((box.x2 - box.x1) / MODEL_INPUT_SIZE) * canvasWidth;
+        const h = ((box.y2 - box.y1) / MODEL_INPUT_SIZE) * canvasHeight;
 
-      ctx.strokeStyle = calibrationMode && selectedReferenceBox === box 
-        ? 'yellow' 
-        : box.label === 'OK' ? 'lime' : 'red';
-      ctx.lineWidth = calibrationMode && selectedReferenceBox === box ? 4 : 2;
-      ctx.strokeRect(x, y, w, h);
+        ctx.strokeStyle = calibrationMode && selectedReferenceBox === box 
+            ? 'yellow' 
+            : box.label === 'OK' ? 'lime' : 'red';
+        ctx.lineWidth = calibrationMode && selectedReferenceBox === box ? 6 : 4;
+        ctx.strokeRect(x, y, w, h);
 
-      if (box.confidence > 0.5 || selectedReferenceBox === box) {
-        let label = `${box.label} (${(box.confidence * 100).toFixed(0)}%)`;
-        if (box.label === 'OK' && pixelsPerMM) {
-          const sizeMM = calculatePhysicalSize(box, pixelsPerMM);
-          if (sizeMM) label += ` - Ø${sizeMM.toFixed(1)}mm`;
+        if (box.confidence > 0.5 || selectedReferenceBox === box) {
+            let label = `${box.label} (${(box.confidence * 100).toFixed(0)}%)`;
+            if (box.label === 'OK' && pixelsPerMM) {
+                const sizeMM = calculatePhysicalSize(box, pixelsPerMM);
+                if (sizeMM) label += ` - Ø${sizeMM.toFixed(1)}mm`;
+            }
+
+            // Set the dynamic font
+            ctx.font = font;
+            const textWidth = ctx.measureText(label).width;
+            
+            // Draw label background
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.fillRect(x - 2, y - labelBoxHeight, textWidth + 4, labelBoxHeight);
+            
+            // Draw text
+            ctx.fillStyle = 'black';
+            ctx.fillText(label, x, y - (labelBoxHeight * 0.2)); // Adjust text position
         }
-
-        ctx.font = '12px Arial';
-        const textWidth = ctx.measureText(label).width;
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.fillRect(x - 2, y - 16, textWidth + 4, 16);
-        ctx.fillStyle = 'black';
-        ctx.fillText(label, x, y - 4);
-      }
     });
-  };
+};
 
   // Render
   return (
