@@ -278,103 +278,121 @@ function App() {
   }, []);
 
   useEffect(() => {
-  if (status !== 'ready' || !videoRef.current || !videoReadyRef.current) return;
+    if (status !== 'ready' || !videoRef.current || !videoReadyRef.current) return;
 
-  const video = videoRef.current;
-  const canvas = canvasRef.current;
-  const ctx = canvas.getContext('2d', { willReadFrequently: false });
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d', { willReadFrequently: false });
 
-  let animationFrameId;
-  let lastInferenceTime = 0;
-  let lastBoxes = [];
+    let animationFrameId;
+    let lastInferenceTime = 0;
+    let lastBoxes = [];
 
-  const render = () => {
-    if (!video || video.readyState < 2) {
+    const render = () => {
+      if (!video || video.readyState < 2) {
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
+
+      // Update canvas dimensions if needed
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+
+      try {
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw video frame
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Always draw the latest boxes
+        if (boxes.length > 0) {
+          lastBoxes = [...boxes]; // Keep copy of last boxes
+          drawBoxes(ctx, boxes, canvas.width, canvas.height);
+        } else if (lastBoxes.length > 0) {
+          // Fallback to last known boxes if current boxes are empty
+          drawBoxes(ctx, lastBoxes, canvas.width, canvas.height);
+        }
+
+        // Throttled inference
+        const now = performance.now();
+        if (!isProcessingRef.current && now - lastInferenceTime > INFERENCE_THROTTLE_MS) {
+          isProcessingRef.current = true;
+          lastInferenceTime = now;
+          const tensorData = preprocess(video);
+          workerRef.current.postMessage({
+            type: 'infer',
+            tensorData,
+            dims: [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE],
+          }, [tensorData]);
+        }
+      } catch (e) {
+        console.error('Rendering error:', e);
+      }
+
       animationFrameId = requestAnimationFrame(render);
-      return;
-    }
+    };
 
-    // Update canvas dimensions if needed
-    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    }
-
-    try {
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw video frame
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      // Always draw the latest boxes
-      if (boxes.length > 0) {
-        lastBoxes = [...boxes]; // Keep copy of last boxes
-        drawBoxes(ctx, boxes, canvas.width, canvas.height);
-      } else if (lastBoxes.length > 0) {
-        // Fallback to last known boxes if current boxes are empty
-        drawBoxes(ctx, lastBoxes, canvas.width, canvas.height);
-      }
-
-      // Throttled inference
-      const now = performance.now();
-      if (!isProcessingRef.current && now - lastInferenceTime > INFERENCE_THROTTLE_MS) {
-        isProcessingRef.current = true;
-        lastInferenceTime = now;
-        const tensorData = preprocess(video);
-        workerRef.current.postMessage({
-          type: 'infer',
-          tensorData,
-          dims: [1, 3, MODEL_INPUT_SIZE, MODEL_INPUT_SIZE],
-        }, [tensorData]);
-      }
-    } catch (e) {
-      console.error('Rendering error:', e);
-    }
-
+    // Start the render loop
     animationFrameId = requestAnimationFrame(render);
-  };
+    
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [status, boxes, calibrationMode, selectedReferenceBox, pixelsPerMM, preprocess, calculatePhysicalSize]);
 
-  // Start the render loop
-  animationFrameId = requestAnimationFrame(render);
-  
-  return () => cancelAnimationFrame(animationFrameId);
-}, [status, boxes, calibrationMode, selectedReferenceBox, pixelsPerMM, preprocess, calculatePhysicalSize]);
+  // Extracted drawBoxes function
+  const drawBoxes = (ctx, boxes, canvasWidth, canvasHeight) => {
+    boxes.forEach(box => {
+      const x = (box.x1 / MODEL_INPUT_SIZE) * canvasWidth;
+      const y = (box.y1 / MODEL_INPUT_SIZE) * canvasHeight;
+      const w = ((box.x2 - box.x1) / MODEL_INPUT_SIZE) * canvasWidth;
+      const h = ((box.y2 - box.y1) / MODEL_INPUT_SIZE) * canvasHeight;
 
-// Extracted drawBoxes function
-const drawBoxes = (ctx, boxes, canvasWidth, canvasHeight) => {
-  boxes.forEach(box => {
-    const x = (box.x1 / MODEL_INPUT_SIZE) * canvasWidth;
-    const y = (box.y1 / MODEL_INPUT_SIZE) * canvasHeight;
-    const w = ((box.x2 - box.x1) / MODEL_INPUT_SIZE) * canvasWidth;
-    const h = ((box.y2 - box.y1) / MODEL_INPUT_SIZE) * canvasHeight;
+      ctx.strokeStyle = calibrationMode && selectedReferenceBox === box 
+        ? 'yellow' 
+        : box.label === 'OK' ? 'lime' : 'red';
+      ctx.lineWidth = calibrationMode && selectedReferenceBox === box ? 4 : 2;
+      ctx.strokeRect(x, y, w, h);
 
-    ctx.strokeStyle = calibrationMode && selectedReferenceBox === box 
-      ? 'yellow' 
-      : box.label === 'OK' ? 'lime' : 'red';
-    ctx.lineWidth = calibrationMode && selectedReferenceBox === box ? 4 : 2;
-    ctx.strokeRect(x, y, w, h);
+      if (box.confidence > 0.5 || selectedReferenceBox === box) {
+        let label = `${box.label} (${(box.confidence * 100).toFixed(0)}%)`;
+        if (box.label === 'OK' && pixelsPerMM) {
+          const sizeMM = calculatePhysicalSize(box, pixelsPerMM);
+          if (sizeMM) label += ` - Ø${sizeMM.toFixed(1)}mm`;
+        }
 
-    if (box.confidence > 0.5 || selectedReferenceBox === box) {
-      let label = `${box.label} (${(box.confidence * 100).toFixed(0)}%)`;
-      if (box.label === 'OK' && pixelsPerMM) {
-        const sizeMM = calculatePhysicalSize(box, pixelsPerMM);
-        if (sizeMM) label += ` - Ø${sizeMM.toFixed(1)}mm`;
+        ctx.font = '12px Arial';
+        const textWidth = ctx.measureText(label).width;
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillRect(x - 2, y - 16, textWidth + 4, 16);
+        ctx.fillStyle = 'black';
+        ctx.fillText(label, x, y - 4);
       }
-
-      ctx.font = '12px Arial';
-      const textWidth = ctx.measureText(label).width;
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fillRect(x - 2, y - 16, textWidth + 4, 16);
-      ctx.fillStyle = 'black';
-      ctx.fillText(label, x, y - 4);
-    }
-  });
-};
+    });
+  };
 
   // Render
   return (
     <div className="app-container">
+      {/* Loading spinner overlay */}
+      {status === 'loading' && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 1000
+        }}>
+          <div className="loader"></div>
+        </div>
+      )}
+
       <div className="header">
         <h1>O-Ring Size Detection</h1>
       </div>
