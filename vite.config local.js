@@ -28,10 +28,5 @@ export default defineConfig({
         }
       }
     }
-  },
-  preview: {
-    host: '0.0.0.0',                 // listen on all interfaces
-    port: process.env.PORT || 4173, // use Render assigned port or default
-    allowedHosts: ['oring-recognition-vite.onrender.com']  // add your Render hostname here
   }
 });
