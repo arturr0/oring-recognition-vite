@@ -201,12 +201,14 @@ function App() {
   const handleBoxClick = useCallback((box) => {
     if (calibrationMode) {
       setSelectedReferenceBox(box);
+      console.log('Selected box:', box); // Debug log
     }
   }, [calibrationMode]);
 
   const startCalibration = useCallback(() => {
     if (referenceSize > 0 && !isNaN(referenceSize)) {
       setCalibrationMode(true);
+      setSelectedReferenceBox(null); // Clear previous selection
       setError(null);
     } else {
       setError('Please enter a valid reference size first');
@@ -233,7 +235,7 @@ function App() {
     setCalibrationComplete(false);
     setPixelsPerMM(null);
     setSelectedReferenceBox(null);
-    setCalibrationMode(false);
+    setCalibrationMode(true); // Automatically enter calibration mode
   }, []);
 
   const toggleCamera = useCallback(() => {
@@ -309,10 +311,9 @@ function App() {
         
         // Always draw the latest boxes
         if (boxes.length > 0) {
-          lastBoxes = [...boxes]; // Keep copy of last boxes
+          lastBoxes = [...boxes];
           drawBoxes(ctx, boxes, canvas.width, canvas.height);
         } else if (lastBoxes.length > 0) {
-          // Fallback to last known boxes if current boxes are empty
           drawBoxes(ctx, lastBoxes, canvas.width, canvas.height);
         }
 
@@ -335,60 +336,92 @@ function App() {
       animationFrameId = requestAnimationFrame(render);
     };
 
-    // Start the render loop
     animationFrameId = requestAnimationFrame(render);
     
     return () => cancelAnimationFrame(animationFrameId);
   }, [status, boxes, calibrationMode, selectedReferenceBox, pixelsPerMM, preprocess, calculatePhysicalSize]);
 
-  // Extracted drawBoxes function
   const drawBoxes = (ctx, boxes, canvasWidth, canvasHeight) => {
-    // Calculate dynamic font size based on canvas width (adjust the divisor as needed)
-    const fontSize = Math.max(13, canvasWidth / 50); // Minimum 10px, scales with canvas
+    const fontSize = Math.max(13, canvasWidth / 50);
     const fontFamily = 'Arial, sans-serif';
     const font = `${fontSize}px ${fontFamily}`;
-    
-    // Calculate label box height based on font size
-    const labelBoxHeight = fontSize * 1.3; // 1.3 is a good ratio for text padding
+    const labelBoxHeight = fontSize * 1.3;
     
     boxes.forEach(box => {
-        const x = (box.x1 / MODEL_INPUT_SIZE) * canvasWidth;
-        const y = (box.y1 / MODEL_INPUT_SIZE) * canvasHeight;
-        const w = ((box.x2 - box.x1) / MODEL_INPUT_SIZE) * canvasWidth;
-        const h = ((box.y2 - box.y1) / MODEL_INPUT_SIZE) * canvasHeight;
+      const x = (box.x1 / MODEL_INPUT_SIZE) * canvasWidth;
+      const y = (box.y1 / MODEL_INPUT_SIZE) * canvasHeight;
+      const w = ((box.x2 - box.x1) / MODEL_INPUT_SIZE) * canvasWidth;
+      const h = ((box.y2 - box.y1) / MODEL_INPUT_SIZE) * canvasHeight;
 
-        ctx.strokeStyle = calibrationMode && selectedReferenceBox === box 
-            ? 'yellow' 
-            : box.label === 'OK' ? 'lime' : 'red';
-        ctx.lineWidth = calibrationMode && selectedReferenceBox === box ? 6 : 4;
-        ctx.strokeRect(x, y, w, h);
+      // Highlight selected box with fill
+      if (calibrationMode && selectedReferenceBox === box) {
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.2)';
+        ctx.fillRect(x, y, w, h);
+      }
 
-        if (box.confidence > 0.5 || selectedReferenceBox === box) {
-            let label = `${box.label} (${(box.confidence * 100).toFixed(0)}%)`;
-            if (box.label === 'OK' && pixelsPerMM) {
-                const sizeMM = calculatePhysicalSize(box, pixelsPerMM);
-                if (sizeMM) label += ` - Ø${sizeMM.toFixed(1)}mm`;
-            }
+      ctx.strokeStyle = calibrationMode && selectedReferenceBox === box 
+        ? 'yellow' 
+        : box.label === 'OK' ? 'lime' : 'red';
+      ctx.lineWidth = calibrationMode && selectedReferenceBox === box ? 6 : 4;
+      ctx.strokeRect(x, y, w, h);
 
-            // Set the dynamic font
-            ctx.font = font;
-            const textWidth = ctx.measureText(label).width;
-            
-            // Draw label background
-            ctx.fillStyle = 'rgba(255,255,255,0.7)';
-            ctx.fillRect(x - 2, y - labelBoxHeight, textWidth + 4, labelBoxHeight);
-            
-            // Draw text
-            ctx.fillStyle = 'black';
-            ctx.fillText(label, x, y - (labelBoxHeight * 0.2)); // Adjust text position
+      if (box.confidence > 0.5 || selectedReferenceBox === box) {
+        let label = `${box.label} (${(box.confidence * 100).toFixed(0)}%)`;
+        if (box.label === 'OK' && pixelsPerMM) {
+          const sizeMM = calculatePhysicalSize(box, pixelsPerMM);
+          if (sizeMM) label += ` - Ø${sizeMM.toFixed(1)}mm`;
         }
-    });
-};
 
-  // Render
+        ctx.font = font;
+        const textWidth = ctx.measureText(label).width;
+        
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillRect(x - 2, y - labelBoxHeight, textWidth + 4, labelBoxHeight);
+        
+        ctx.fillStyle = 'black';
+        ctx.fillText(label, x, y - (labelBoxHeight * 0.2));
+      }
+    });
+  };
+
+  const handleCanvasClick = (e) => {
+    if (!calibrationMode || !boxes.length) return;
+    
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
+    
+    // Find the box with center closest to click point
+    let closestBox = null;
+    let minDistance = Infinity;
+    
+    boxes.forEach(box => {
+      const boxCenterX = ((box.x1 + box.x2) / 2 / MODEL_INPUT_SIZE) * canvas.width;
+      const boxCenterY = ((box.y1 + box.y2) / 2 / MODEL_INPUT_SIZE) * canvas.height;
+      
+      const distance = Math.sqrt(
+        Math.pow(clickX - boxCenterX, 2) + 
+        Math.pow(clickY - boxCenterY, 2)
+      );
+      
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestBox = box;
+      }
+    });
+    
+    // Only select if click was reasonably close to a box
+    if (closestBox && minDistance < 50) { // 50px threshold
+      handleBoxClick(closestBox);
+    }
+  };
+
   return (
     <div className="app-container">
-      {/* Loading spinner overlay */}
       {status === 'loading' && (
         <div style={{
           position: 'fixed',
@@ -458,28 +491,7 @@ function App() {
             />
             <canvas
               ref={canvasRef}
-              onClick={(e) => {
-                if (!calibrationMode || !boxes.length) return;
-                
-                const rect = canvasRef.current.getBoundingClientRect();
-                const scaleX = canvasRef.current.width / rect.width;
-                const scaleY = canvasRef.current.height / rect.height;
-                
-                const x = (e.clientX - rect.left) * scaleX;
-                const y = (e.clientY - rect.top) * scaleY;
-                
-                const clickedBox = boxes.find(box => {
-                  const boxX = (box.x1 / MODEL_INPUT_SIZE) * canvasRef.current.width;
-                  const boxY = (box.y1 / MODEL_INPUT_SIZE) * canvasRef.current.height;
-                  const boxW = ((box.x2 - box.x1) / MODEL_INPUT_SIZE) * canvasRef.current.width;
-                  const boxH = ((box.y2 - box.y1) / MODEL_INPUT_SIZE) * canvasRef.current.height;
-                  
-                  return x >= boxX - 10 && x <= boxX + boxW + 10 && 
-                         y >= boxY - 10 && y <= boxY + boxH + 10;
-                });
-                
-                if (clickedBox) handleBoxClick(clickedBox);
-              }}
+              onClick={handleCanvasClick}
             />
           </div>
         </div>
