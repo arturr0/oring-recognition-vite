@@ -37,7 +37,7 @@ function App() {
   const [selectedReferenceBox, setSelectedReferenceBox] = useState(null);
   const [facingMode, setFacingMode] = useState('environment');
 
-  // Utility functions
+  // Utility functions (same as before)
   const preprocess = useCallback((frame) => {
     const offscreen = document.createElement('canvas');
     offscreen.width = MODEL_INPUT_SIZE;
@@ -140,7 +140,7 @@ function App() {
     return diameterPx / ppm;
   }, []);
 
-  // Camera initialization
+  // Simplified camera initialization without setTimeout
   const initCamera = useCallback(async () => {
     try {
       if (streamRef.current) {
@@ -203,7 +203,7 @@ function App() {
     }
   }, [facingMode]);
 
-  // Event handlers
+  // Event handlers (same as before)
   const handleBoxClick = useCallback((box) => {
     if (calibrationMode) {
       setSelectedReferenceBox(box);
@@ -253,7 +253,7 @@ function App() {
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
   }, []);
 
-  // Effects
+  // Effects (same as before)
   useEffect(() => {
     initCamera();
     return () => {
@@ -288,7 +288,7 @@ function App() {
     worker.postMessage({ type: 'loadModel', modelUrl: '/best_simplified.onnx' });
 
     return () => worker.terminate();
-  }, [nonMaxSuppression, parseYOLOv5Output]);
+  }, []);
 
   useEffect(() => {
     if (status !== 'ready' || !videoRef.current || !videoReadyRef.current) return;
@@ -417,7 +417,7 @@ function App() {
       }
     });
     
-    if (closestBox && minDistance < 100) { // Increased click threshold from 50 to 100
+    if (closestBox && minDistance < 50) {
       handleBoxClick(closestBox);
     }
   };
