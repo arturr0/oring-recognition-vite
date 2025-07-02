@@ -1,12 +1,12 @@
 ## O-Ring Size Detection System  
 ![Status](https://img.shields.io/badge/status-alpha-orange)  
-![Tech](https://img.shields.io/badge/-React-61DAFB) ![Tech](https://img.shields.io/badge/-YOLOv5-00FFFF) ![Tech](https://img.shields.io/badge/-ONNX-005CED) ![Tech](https://img.shields.io/badge/-WebGL-990000)  
-
-🌐 **Live Demo**: [https://oring-recognition-vite.onrender.com](https://oring-recognition-vite.onrender.com)  
+![Tech](https://img.shields.io/badge/-React-61DAFB) ![Tech](https://img.shields.io/badge/-YOLOv5-00FFFF) ![Tech](https://img.shields.io/badge/-ONNX-005CED) ![Tech](https://img.shields.io/badge/-WebGL-990000) 
 
 <div align="center">
   <img src="https://cdn.glitch.global/79283f6f-ef1e-4285-822b-eaefe68c462e/orning.jpg" height="400">
 </div>
+
+🌐 **Live Demo**: [https://oring-recognition-vite.onrender.com](https://oring-recognition-vite.onrender.com)  
 
 ### ✨ Key Features  
 - **±0.1mm accuracy** after calibration  
