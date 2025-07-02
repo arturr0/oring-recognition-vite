@@ -9,7 +9,7 @@
 🌐 **Live Demo**: [https://oring-recognition-vite.onrender.com](https://oring-recognition-vite.onrender.com)  
 
 ### ✨ Key Features  
-- **±0.1mm accuracy** after calibration  
+<!--- **±0.1mm accuracy** after calibration  -->
 - **Defect classification** (SCAR, TEAR, BLOCK, etc.)  
 - **Cross-device** browser support  
 - **15 FPS inference** via WebWorker + ONNX Runtime  
