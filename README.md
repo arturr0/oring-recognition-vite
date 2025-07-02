@@ -2,7 +2,7 @@
 ![Status](https://img.shields.io/badge/status-alpha-orange)  
 ![Tech](https://img.shields.io/badge/-React-61DAFB) ![Tech](https://img.shields.io/badge/-YOLOv5-00FFFF) ![Tech](https://img.shields.io/badge/-ONNX-005CED) ![Tech](https://img.shields.io/badge/-WebGL-990000) 
 
-<div align="center">
+<div align="left">
   <img src="https://cdn.glitch.global/79283f6f-ef1e-4285-822b-eaefe68c462e/orning.jpg" height="400">
 </div>
 
