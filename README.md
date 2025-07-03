@@ -9,7 +9,7 @@
 </div>
 
 ### ✨ Key Features  
-- **Precision Measurement**: Detects O-rings with ±0.1mm accuracy after calibration  
+- **Measurement**: Detects after calibration  
 - **Defect Classification**: Identifies 6 defect types (SCAR, TEAR, BLOCK, etc.)  
 - **Cross-Device**: Works on mobile/desktop browsers with camera access  
 - **Optimized Inference**: WebWorker + ONNX Runtime for smooth 15 FPS performance  
