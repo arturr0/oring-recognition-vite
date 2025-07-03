@@ -18,9 +18,9 @@
 ### 🛠️ Technical Stack  
 | Component               | Technology                          |
 |-------------------------|-------------------------------------|
-| Frontend                | React ![React](https://img.shields.io/badge/-React-61DAFB) |
-| Computer Vision         | YOLOv5 (custom-trained ONNX model) ![YOLOv5](https://img.shields.io/badge/-YOLOv5-00FFFF) ![ONNX](https://img.shields.io/badge/-ONNX-005CED) |
-| Real-time Processing    | Web Workers, WebGL ![WebGL](https://img.shields.io/badge/-WebGL-990000) |
+| Frontend                | React |
+| Computer Vision         | YOLOv5 (custom-trained ONNX model) |
+| Real-time Processing    | Web Workers |
 | Camera Pipeline         | MediaDevices API                    |
 | Measurement System      | Perspective calibration             |
 
