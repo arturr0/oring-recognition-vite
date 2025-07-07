@@ -525,11 +525,7 @@ function App() {
         
         <div className="status">
           Status: <span className={`status-${status.toLowerCase()}`}>{status}</span>
-{/*           {error && (
-            <div className={`alert ${typeof error === 'string' ? 'alert-error' : 'alert-success'}`}>
-              {typeof error === 'string' ? error : error.message}
-            </div>
-          )} */}
+
         </div>
       </div>
     </div>
