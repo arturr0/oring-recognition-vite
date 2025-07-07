@@ -188,7 +188,7 @@ function App() {
     } catch (e) {
       console.error('Camera initialization error:', e);
       setError('Camera error: ' + e.message);
-      setStatus('error');
+      //setStatus('error');
       
       if (e.name === 'NotAllowedError') {
         setError('Please allow camera access and click the page to start');
