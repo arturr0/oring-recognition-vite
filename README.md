@@ -5,7 +5,7 @@
 🌐 **Live Demo**: [https://oring-recognition-vite.onrender.com](https://oring-recognition-vite.onrender.com)  
 
 <div align="center">
-  <img src="https://artur-bednarski.onrender.com/public/images/orning.jpg">
+  <img src="https://artur-bednarski.onrender.com/public/images/orning.jpg" height="1000px">
 </div>
 
 ### ✨ Key Features  
